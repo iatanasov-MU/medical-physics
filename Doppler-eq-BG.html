@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Доплеров Ефект в Медицината - Симулация</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            max-width: 650px;
+            width: 100%;
+        }
+        h2 {
+            color: #2c3e50;
+            margin-top: 0;
+            border-bottom: 2px solid #edf2f7;
+            padding-bottom: 10px;
+            font-size: 20px;
+        }
+        .formula {
+            background-color: #f8f9fa;
+            padding: 12px;
+            border-left: 4px solid #3498db;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 16px;
+            margin-bottom: 20px;
+            border-radius: 0 4px 4px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+        .control-group {
+            margin-bottom: 18px;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #4a5568;
+        }
+        input[type="range"] {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+        .value-display {
+            font-weight: bold;
+            color: #3182ce;
+        }
+        .visualization-box {
+            position: relative;
+            width: 100%;
+            height: 240px;
+            background-color: #edf2f7;
+            border-radius: 8px;
+            margin-top: 20px;
+            overflow: hidden;
+            border: 1px solid #cbd5e0;
+        }
+        .vessel {
+            position: absolute;
+            left: 0;
+            top: 150px;
+            width: 100%;
+            height: 45px;
+            background-color: #000000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+        }
+        /* Фиксираме системата точно в центъра на съда (150px + 22.5px височина) */
+        .probe-system {
+            position: absolute;
+            left: 50%;
+            top: 172.5px;
+            width: 2px;
+            height: 130px;
+            transform-origin: top center;
+            z-index: 5;
+            pointer-events: none;
+        }
+        .probe {
+            position: absolute;
+            left: -35px;
+            /* Позиционираме сондата в горния край на рамото */
+            top: -130px;
+            width: 70px;
+            height: 25px;
+            background-color: #4a5568;
+            border-radius: 6px 6px 4px 4px;
+            color: white;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+        }
+        /* Тънък и дискретен пунктиран лъч от сондата до съда */
+        .beam-line {
+            position: absolute;
+            left: 0;
+            top: -105px;
+            width: 1px;
+            height: 105px;
+            border-left: 1.5px dashed #718096;
+            opacity: 0.7;
+        }
+        .arrow-container {
+            position: absolute;
+            left: 0;
+            top: 170px;
+            width: 100%;
+            height: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            z-index: 12;
+        }
+        .velocity-arrow {
+            height: 4px;
+            background-color: #ffffff;
+            position: relative;
+        }
+        .velocity-arrow::after {
+            content: '';
+            position: absolute;
+            top: -5px;
+            width: 0;
+            height: 0;
+            border-style: solid;
+        }
+        .arrow-right::after {
+            right: -8px;
+            border-width: 7px 0 7px 8px;
+            border-color: transparent transparent transparent #ffffff;
+        }
+        .arrow-left::after {
+            left: -8px;
+            border-width: 7px 8px 7px 0;
+            border-color: transparent #ffffff transparent transparent;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f7fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .result-item {
+            font-size: 15px;
+        }
+        .result-item span {
+            font-weight: bold;
+            color: #2b6cb0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Интерактивен Цветен Доплер и Доплеров Ъгъл</h2>
+    <div class="formula">
+        Δf = (2 · f₀ · v · cosθ) / c
+    </div>
+
+    <div class="control-group">
+        <label>Честота на сондата (f₀): <span id="f0-val" class="value-display">5.0</span> MHz</label>
+        <input type="range" id="f0" min="2" max="10" step="0.5" value="5">
+    </div>
+
+    <div class="control-group">
+        <label>Скорост на кръвотока (v): <span id="v-val" class="value-display">0.50</span> m/s</label>
+        <input type="range" id="v" min="-1" max="1" step="0.05" value="0.5">
+    </div>
+
+    <div class="control-group">
+        <label>Доплеров ъгъл (θ): <span id="angle-val" class="value-display">45</span>°</label>
+        <input type="range" id="angle" min="0" max="90" step="5" value="45">
+    </div>
+
+    <div class="visualization-box">
+        <div id="probe-system" class="probe-system">
+            <div class="probe">УЗ Сонда</div>
+            <div class="beam-line"></div>
+        </div>
+        <div id="vessel" class="vessel"></div>
+        <div class="arrow-container">
+            <div id="arrow" class="velocity-arrow"></div>
+        </div>
+    </div>
+
+    <div class="results">
+        <div class="result-item">cos(θ): <span id="cos-val">0.71</span></div>
+        <div class="result-item">Доплерово отместване (Δf): <span id="df-val">3247 Hz</span></div>
+    </div>
+</div>
+
+<script>
+    const c = 1540;
+
+    const f0Input = document.getElementById('f0');
+    const vInput = document.getElementById('v');
+    const angleInput = document.getElementById('angle');
+
+    const f0Val = document.getElementById('f0-val');
+    const vVal = document.getElementById('v-val');
+    const angleVal = document.getElementById('angle-val');
+    const cosVal = document.getElementById('cos-val');
+    const dfVal = document.getElementById('df-val');
+
+    const vessel = document.getElementById('vessel');
+    const probeSystem = document.getElementById('probe-system');
+    const arrow = document.getElementById('arrow');
+
+    function updateSimulation() {
+        const f0 = parseFloat(f0Input.value) * 1e6;
+        const v = parseFloat(vInput.value);
+        const angleDeg = parseFloat(angleInput.value);
+        const angleRad = angleDeg * (Math.PI / 180);
+        const cosTheta = Math.cos(angleRad);
+
+        f0Val.innerText = parseFloat(f0Input.value).toFixed(1);
+        vVal.innerText = v.toFixed(2);
+        angleVal.innerText = angleDeg;
+        cosVal.innerText = cosTheta.toFixed(2);
+
+        const df = (2 * f0 * v * cosTheta) / c;
+        dfVal.innerText = Math.round(df) + " Hz";
+
+        // Завъртане около центъра на съда
+        // При θ = 90°, ротацията е 0 (сондата е точно отгоре)
+        // При θ = 0°, сондата се накланя наляво (-90 градуса ротация)
+        const rotationAngle = 90 - angleDeg;
+        probeSystem.style.transform = `rotate(${-rotationAngle}deg)`;
+
+        const maxPixelWidth = 120;
+        const currentWidth = Math.abs(v) * maxPixelWidth;
+        arrow.style.width = `${currentWidth}px`;
+
+        if (v > 0) {
+            arrow.className = "velocity-arrow arrow-left";
+            arrow.style.transform = `translateX(${currentWidth / 2}px)`;
+        } else if (v < 0) {
+            arrow.className = "velocity-arrow arrow-right";
+            arrow.style.transform = `translateX(${-currentWidth / 2}px)`;
+        } else {
+            arrow.className = "velocity-arrow";
+            arrow.style.transform = "none";
+            arrow.style.width = "0px";
+        }
+
+        const shiftFactor = v * cosTheta; // Стойност между -1 и 1
+
+        if (Math.abs(shiftFactor) < 0.01) {
+            vessel.style.backgroundColor = "#000000";
+        } else if (shiftFactor > 0) {
+            const redIntensity = Math.round(Math.abs(shiftFactor) * 255);
+            vessel.style.backgroundColor = `rgb(${redIntensity}, 0, 0)`;
+        } else {
+            const blueIntensity = Math.round(Math.abs(shiftFactor) * 255);
+            vessel.style.backgroundColor = `rgb(0, 0, ${blueIntensity})`;
+        }
+    }
+
+    f0Input.addEventListener('input', updateSimulation);
+    f0Input.addEventListener('change', updateSimulation);
+    vInput.addEventListener('input', updateSimulation);
+    vInput.addEventListener('change', updateSimulation);
+    angleInput.addEventListener('input', updateSimulation);
+    angleInput.addEventListener('change', updateSimulation);
+
+    updateSimulation();
+</script>
+
+</body>
+</html>
